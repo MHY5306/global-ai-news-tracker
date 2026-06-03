@@ -7,16 +7,14 @@ This project is already deployed as a frontend-only portfolio demo on Vercel. To
 1. Open Render and choose **New +** -> **Blueprint**.
 2. Connect the GitHub repository `MHY5306/global-ai-news-tracker`.
 3. Render will read `render.yaml` and create `global-ai-news-tracker-api`.
-4. Add environment variables:
+4. The backend can deploy without API keys. After it is running, optionally add:
 
 ```env
-ENABLE_LIVE_FETCH=true
-ALLOWED_ORIGINS=https://global-ai-news-tracker.vercel.app,http://localhost:3000
 OPENAI_API_KEY=your_openai_key_optional_but_recommended
 NEWS_API_KEY=your_newsapi_key_optional
 ```
 
-The app can still fetch from GDELT, Google News RSS, Hacker News, and Reddit without NewsAPI. Without `OPENAI_API_KEY`, it uses heuristic enrichment instead of OpenAI summaries.
+The blueprint already sets `ENABLE_LIVE_FETCH=true` and `ALLOWED_ORIGINS`. The app can still fetch from GDELT, Google News RSS, Hacker News, and Reddit without NewsAPI. Without `OPENAI_API_KEY`, it uses heuristic enrichment instead of OpenAI summaries.
 
 ## Frontend: Vercel
 

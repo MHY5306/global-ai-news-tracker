@@ -102,7 +102,7 @@ Open [http://localhost:3000](http://localhost:3000).
 1. On Render, choose **New +** -> **Blueprint**.
 2. Connect this GitHub repository.
 3. Render reads `render.yaml` and deploys the FastAPI backend from `backend/`.
-4. Add `OPENAI_API_KEY`, `NEWS_API_KEY`, and `ALLOWED_ORIGINS` as needed.
+4. Deploy once without API keys, then optionally add `OPENAI_API_KEY` and `NEWS_API_KEY`.
 5. Add the Render backend URL to Vercel as `NEXT_PUBLIC_API_BASE_URL`.
 
 More details are in `docs/live-deployment.md`.
