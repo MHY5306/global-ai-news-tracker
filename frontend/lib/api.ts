@@ -1,6 +1,6 @@
 import { analytics, articles } from "./mock-data";
 
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "https://global-ai-news-tracker-api.onrender.com";
 
 async function request<T>(path: string, fallback: T): Promise<T> {
   if (!apiBase) return fallback;

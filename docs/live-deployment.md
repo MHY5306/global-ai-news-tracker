@@ -24,7 +24,7 @@ After the Render backend is live, copy its public URL, for example:
 https://global-ai-news-tracker-api.onrender.com
 ```
 
-Then open the Vercel project and add:
+The frontend defaults to the Render backend URL. If you deploy your own backend URL, open the Vercel project and add:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=https://global-ai-news-tracker-api.onrender.com
