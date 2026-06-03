@@ -13,7 +13,7 @@ services:
       - key: REFRESH_MINUTES
         value: 3
       - key: SOURCE_TIMEOUT_SECONDS
-        value: 4
+        value: 10
       - key: ALLOWED_ORIGINS
         value: https://global-ai-news-tracker.vercel.app,http://localhost:3000
       - key: PYTHON_VERSION

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "@/lib/api";
 import type { Analytics, Article } from "@/lib/types";
 import { getBookmarks } from "@/lib/storage";
 import { ArticleCard } from "./article-card";
@@ -23,16 +24,15 @@ export function NewsDashboard({ articles, analytics }: { articles: Article[]; an
   const [bookmarks, setBookmarks] = useState<string[]>(() => getBookmarks().map((item) => item.id));
 
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (!apiBase) return;
     const refresh = async () => {
       try {
-        const response = await fetch(`${apiBase}/api/news`);
+        const response = await fetch(`${API_BASE_URL}/api/news`);
         if (response.ok) setLiveArticles(await response.json());
       } catch {
         setLiveArticles((current) => current);
       }
     };
+    refresh();
     const timer = window.setInterval(refresh, 180000);
     return () => window.clearInterval(timer);
   }, []);

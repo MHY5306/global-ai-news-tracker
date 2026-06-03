@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:3000"
     refresh_minutes: int = 3
     enable_live_fetch: bool = False
-    source_timeout_seconds: float = 4.0
+    source_timeout_seconds: float = 10.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

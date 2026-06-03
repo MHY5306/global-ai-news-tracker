@@ -26,6 +26,11 @@ KEYWORDS = [
     "AI regulation",
 ]
 
+REQUEST_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; GlobalAITracker/1.0; +https://global-ai-news-tracker.vercel.app)",
+    "Accept": "application/json,text/html,application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
+}
+
 
 def stable_id(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
@@ -34,7 +39,7 @@ def stable_id(value: str) -> str:
 async def fetch_google_news_rss(keyword: str) -> list[Article]:
     query = quote_plus(keyword)
     url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
-    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds) as client:
+    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds, headers=REQUEST_HEADERS, follow_redirects=True) as client:
         response = await client.get(url)
         response.raise_for_status()
     feed = feedparser.parse(response.text)
@@ -66,7 +71,7 @@ async def fetch_gdelt(keyword: str) -> list[Article]:
         "maxrecords": 12,
         "sort": "HybridRel",
     }
-    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds) as client:
+    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds, headers=REQUEST_HEADERS, follow_redirects=True) as client:
         response = await client.get(url, params=params)
         response.raise_for_status()
         payload = response.json()
@@ -99,7 +104,7 @@ async def fetch_newsapi(keyword: str) -> list[Article]:
         "sortBy": "publishedAt",
         "apiKey": settings.news_api_key,
     }
-    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds) as client:
+    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds, headers=REQUEST_HEADERS, follow_redirects=True) as client:
         response = await client.get(url, params=params)
         response.raise_for_status()
         payload = response.json()
@@ -122,7 +127,7 @@ async def fetch_newsapi(keyword: str) -> list[Article]:
 async def fetch_hacker_news(keyword: str) -> list[Article]:
     url = "https://hn.algolia.com/api/v1/search_by_date"
     params = {"query": keyword, "tags": "story", "hitsPerPage": 10}
-    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds) as client:
+    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds, headers=REQUEST_HEADERS, follow_redirects=True) as client:
         response = await client.get(url, params=params)
         response.raise_for_status()
         payload = response.json()
@@ -148,8 +153,7 @@ async def fetch_hacker_news(keyword: str) -> list[Article]:
 async def fetch_reddit(keyword: str) -> list[Article]:
     url = "https://www.reddit.com/r/artificial+MachineLearning+LocalLLaMA+OpenAI/search.json"
     params = {"q": keyword, "restrict_sr": "on", "sort": "new", "limit": 10}
-    headers = {"User-Agent": "global-ai-news-tracker/1.0"}
-    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=settings.source_timeout_seconds, headers=REQUEST_HEADERS, follow_redirects=True) as client:
         response = await client.get(url, params=params)
         response.raise_for_status()
         payload = response.json()
@@ -185,7 +189,7 @@ async def collect_latest_news(limit: int = 60) -> list[Article]:
 
     tasks = [
         safe_collect(keyword, collector)
-        for keyword in KEYWORDS[:6]
+        for keyword in KEYWORDS
         for collector in (fetch_newsapi, fetch_gdelt, fetch_google_news_rss, fetch_hacker_news, fetch_reddit)
     ]
     results = await asyncio.gather(*tasks)

@@ -1,11 +1,10 @@
 import { analytics, articles } from "./mock-data";
 
-const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "https://global-ai-news-tracker-api.onrender.com";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://global-ai-news-tracker-api.onrender.com";
 
 async function request<T>(path: string, fallback: T): Promise<T> {
-  if (!apiBase) return fallback;
   try {
-    const response = await fetch(`${apiBase}${path}`, { next: { revalidate: 120 } });
+    const response = await fetch(`${API_BASE_URL}${path}`, { next: { revalidate: 120 } });
     if (!response.ok) return fallback;
     return (await response.json()) as T;
   } catch {
