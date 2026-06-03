@@ -1,0 +1,22 @@
+<svg width="960" height="520" viewBox="0 0 960 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="960" height="520" rx="18" fill="#101820"/>
+  <path d="M90 252C177 122 329 71 480 80C651 90 779 175 870 265" stroke="#243244" stroke-width="2"/>
+  <path d="M89 318C185 376 327 413 480 412C632 411 779 372 871 314" stroke="#243244" stroke-width="2"/>
+  <path d="M177 110C240 197 276 287 277 414" stroke="#243244" stroke-width="2"/>
+  <path d="M781 110C718 197 682 287 681 414" stroke="#243244" stroke-width="2"/>
+  <path d="M480 76V414" stroke="#243244" stroke-width="2"/>
+  <path d="M88 266H872" stroke="#243244" stroke-width="2"/>
+  <circle cx="225" cy="222" r="10" fill="#22D3EE"/>
+  <circle cx="225" cy="222" r="27" stroke="#22D3EE" stroke-opacity=".28" stroke-width="4"/>
+  <circle cx="515" cy="163" r="8" fill="#FB923C"/>
+  <circle cx="515" cy="163" r="24" stroke="#FB923C" stroke-opacity=".24" stroke-width="4"/>
+  <circle cx="678" cy="292" r="11" fill="#A7F3D0"/>
+  <circle cx="678" cy="292" r="30" stroke="#A7F3D0" stroke-opacity=".22" stroke-width="4"/>
+  <circle cx="384" cy="346" r="7" fill="#C4B5FD"/>
+  <circle cx="384" cy="346" r="22" stroke="#C4B5FD" stroke-opacity=".22" stroke-width="4"/>
+  <path d="M225 222C326 177 413 151 515 163" stroke="#22D3EE" stroke-width="3" stroke-linecap="round"/>
+  <path d="M515 163C584 194 636 233 678 292" stroke="#FB923C" stroke-width="3" stroke-linecap="round"/>
+  <path d="M384 346C481 359 581 341 678 292" stroke="#A7F3D0" stroke-width="3" stroke-linecap="round"/>
+  <text x="64" y="462" fill="#94A3B8" font-family="Inter, Arial" font-size="24">Global source signal map</text>
+  <text x="64" y="492" fill="#64748B" font-family="Inter, Arial" font-size="16">RSS, GDELT, NewsAPI, Reddit, Hacker News</text>
+</svg>
