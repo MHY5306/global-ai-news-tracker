@@ -15,14 +15,14 @@ KEYWORDS = [
     "artificial intelligence",
     "OpenAI",
     "ChatGPT",
-    "GPT",
-    "Claude",
-    "Gemini",
-    "NVIDIA",
+    "OpenAI GPT",
+    "Claude AI Anthropic",
+    "Google Gemini AI",
+    "NVIDIA AI",
     "AI startup",
     "LLM",
-    "AGI",
-    "robotics",
+    "AGI artificial intelligence",
+    "AI robotics",
     "generative AI",
     "AI regulation",
 ]
@@ -60,6 +60,20 @@ NON_NEWS_DOMAINS = {
 
 HN_TITLE_BLOCKLIST = ("show hn:", "ask hn:", "launch hn:")
 
+ASTROLOGY_TERMS = [
+    "horoscope",
+    "zodiac",
+    "astrology",
+    "tarot",
+    "birth chart",
+    "daily horoscope",
+    "weekly horoscope",
+    "gemini horoscope",
+    "mercury retrograde",
+    "moon sign",
+    "sun sign",
+]
+
 
 def stable_id(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
@@ -68,6 +82,11 @@ def stable_id(value: str) -> str:
 def contains_ai_signal(text: str) -> bool:
     normalized = text.lower()
     return any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in AI_RELEVANCE_TERMS)
+
+
+def contains_blocked_topic(text: str) -> bool:
+    normalized = text.lower()
+    return any(term in normalized for term in ASTROLOGY_TERMS)
 
 
 def is_non_news_url(url: str) -> bool:
@@ -84,16 +103,21 @@ async def fetch_google_news_rss(keyword: str) -> list[Article]:
     feed = feedparser.parse(response.text)
     articles: list[Article] = []
     for entry in feed.entries[:8]:
+        title = getattr(entry, "title", "")
+        summary = getattr(entry, "summary", title)
+        relevance_text = f"{title} {summary} {entry.link}"
+        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+            continue
         published = getattr(entry, "published_parsed", None)
         published_at = datetime(*published[:6], tzinfo=timezone.utc) if published else datetime.now(timezone.utc)
         articles.append(
             Article(
                 id=stable_id(entry.link),
-                title=entry.title,
+                title=title,
                 source="Google News",
                 url=entry.link,
                 publishedAt=published_at,
-                summary=getattr(entry, "summary", entry.title),
+                summary=summary,
                 keywords=[keyword],
                 popularity=55,
             )
@@ -116,11 +140,16 @@ async def fetch_gdelt(keyword: str) -> list[Article]:
         payload = response.json()
     articles: list[Article] = []
     for item in payload.get("articles", []):
+        title = item.get("title", "Untitled AI article")
+        source = item.get("sourceCommonName", "GDELT")
+        relevance_text = f"{title} {source} {item.get('url', '')}"
+        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+            continue
         articles.append(
             Article(
                 id=stable_id(item["url"]),
-                title=item.get("title", "Untitled AI article"),
-                source=item.get("sourceCommonName", "GDELT"),
+                title=title,
+                source=source,
                 url=item["url"],
                 publishedAt=datetime.now(timezone.utc),
                 summary=item.get("seendate", "Global AI news item detected by GDELT."),
@@ -147,20 +176,29 @@ async def fetch_newsapi(keyword: str) -> list[Article]:
         response = await client.get(url, params=params)
         response.raise_for_status()
         payload = response.json()
-    return [
-        Article(
-            id=stable_id(item["url"]),
-            title=item["title"],
-            source=item.get("source", {}).get("name", "NewsAPI"),
-            url=item["url"],
-            publishedAt=item.get("publishedAt") or datetime.now(timezone.utc),
-            summary=item.get("description") or item["title"],
-            keywords=[keyword],
-            popularity=60,
+    articles: list[Article] = []
+    for item in payload.get("articles", []):
+        if not item.get("url") or not item.get("title"):
+            continue
+        title = item["title"]
+        summary = item.get("description") or title
+        source = item.get("source", {}).get("name", "NewsAPI")
+        relevance_text = f"{title} {summary} {source} {item['url']}"
+        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+            continue
+        articles.append(
+            Article(
+                id=stable_id(item["url"]),
+                title=title,
+                source=source,
+                url=item["url"],
+                publishedAt=item.get("publishedAt") or datetime.now(timezone.utc),
+                summary=summary,
+                keywords=[keyword],
+                popularity=60,
+            )
         )
-        for item in payload.get("articles", [])
-        if item.get("url") and item.get("title")
-    ]
+    return articles
 
 
 async def fetch_hacker_news(keyword: str) -> list[Article]:
@@ -175,8 +213,8 @@ async def fetch_hacker_news(keyword: str) -> list[Article]:
         title = item.get("title") or item.get("story_title") or "Hacker News AI discussion"
         external_url = item.get("url") or ""
         hn_url = f"https://news.ycombinator.com/item?id={item.get('objectID')}"
-        relevance_text = f"{title} {external_url} {keyword}"
-        if title.lower().startswith(HN_TITLE_BLOCKLIST) or not contains_ai_signal(relevance_text):
+        relevance_text = f"{title} {external_url}"
+        if title.lower().startswith(HN_TITLE_BLOCKLIST) or contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
             continue
         if external_url and is_non_news_url(external_url):
             continue
@@ -207,16 +245,21 @@ async def fetch_reddit(keyword: str) -> list[Article]:
     articles: list[Article] = []
     for child in payload.get("data", {}).get("children", []):
         item = child.get("data", {})
+        title = item.get("title", "Reddit AI discussion")
+        summary = item.get("selftext", "")[:280] or f"Reddit discussion matching {keyword}."
+        relevance_text = f"{title} {summary} {item.get('url_overridden_by_dest', '')}"
+        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+            continue
         permalink = f"https://www.reddit.com{item.get('permalink', '')}"
         created = datetime.fromtimestamp(item.get("created_utc", datetime.now(timezone.utc).timestamp()), tz=timezone.utc)
         articles.append(
             Article(
                 id=stable_id(permalink),
-                title=item.get("title", "Reddit AI discussion"),
+                title=title,
                 source=f"Reddit r/{item.get('subreddit', 'AI')}",
                 url=item.get("url_overridden_by_dest") or permalink,
                 publishedAt=created,
-                summary=item.get("selftext", "")[:280] or f"Reddit discussion matching {keyword}.",
+                summary=summary,
                 keywords=[keyword, "Reddit"],
                 popularity=min(int(item.get("score") or 0), 100),
             )
