@@ -12,6 +12,8 @@ const sentimentClasses = {
 };
 
 export function ArticleCard({ article, bookmarked = false, onBookmark }: { article: Article; bookmarked?: boolean; onBookmark?: () => void }) {
+  const linkLabel = article.source.includes("Hacker News") ? "Discussion" : article.source.includes("fallback") ? "Reference" : "Original";
+
   return (
     <article className="group rounded-lg border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-glow">
       <div className="flex items-start justify-between gap-4">
@@ -58,7 +60,7 @@ export function ArticleCard({ article, bookmarked = false, onBookmark }: { artic
           onClick={() => addHistory(article)}
           className="inline-flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm transition hover:bg-primary hover:text-primary-foreground"
         >
-          Original
+          {linkLabel}
           <ExternalLink className="h-4 w-4" />
         </a>
       </div>

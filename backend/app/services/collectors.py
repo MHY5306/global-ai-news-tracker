@@ -1,7 +1,8 @@
 import hashlib
 import asyncio
+import re
 from datetime import datetime, timezone
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 import feedparser
 import httpx
@@ -31,9 +32,47 @@ REQUEST_HEADERS = {
     "Accept": "application/json,text/html,application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
+AI_RELEVANCE_TERMS = [
+    "ai",
+    "artificial intelligence",
+    "openai",
+    "chatgpt",
+    "gpt",
+    "claude",
+    "anthropic",
+    "gemini",
+    "nvidia",
+    "llm",
+    "agi",
+    "robot",
+    "generative",
+    "machine learning",
+    "deep learning",
+]
+
+NON_NEWS_DOMAINS = {
+    "github.com",
+    "youtube.com",
+    "youtu.be",
+    "producthunt.com",
+    "app.productnow.ai",
+}
+
+HN_TITLE_BLOCKLIST = ("show hn:", "ask hn:", "launch hn:")
+
 
 def stable_id(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+
+
+def contains_ai_signal(text: str) -> bool:
+    normalized = text.lower()
+    return any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in AI_RELEVANCE_TERMS)
+
+
+def is_non_news_url(url: str) -> bool:
+    host = urlparse(url).netloc.lower().removeprefix("www.")
+    return host in NON_NEWS_DOMAINS
 
 
 async def fetch_google_news_rss(keyword: str) -> list[Article]:
@@ -133,12 +172,20 @@ async def fetch_hacker_news(keyword: str) -> list[Article]:
         payload = response.json()
     articles: list[Article] = []
     for item in payload.get("hits", []):
-        target_url = item.get("url") or f"https://news.ycombinator.com/item?id={item.get('objectID')}"
+        title = item.get("title") or item.get("story_title") or "Hacker News AI discussion"
+        external_url = item.get("url") or ""
+        hn_url = f"https://news.ycombinator.com/item?id={item.get('objectID')}"
+        relevance_text = f"{title} {external_url} {keyword}"
+        if title.lower().startswith(HN_TITLE_BLOCKLIST) or not contains_ai_signal(relevance_text):
+            continue
+        if external_url and is_non_news_url(external_url):
+            continue
+        target_url = external_url or hn_url
         created_at = item.get("created_at") or datetime.now(timezone.utc).isoformat()
         articles.append(
             Article(
                 id=stable_id(target_url),
-                title=item.get("title") or item.get("story_title") or "Hacker News AI discussion",
+                title=title,
                 source="Hacker News",
                 url=target_url,
                 publishedAt=created_at,
