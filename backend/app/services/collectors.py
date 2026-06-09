@@ -12,19 +12,17 @@ from app.models.news import Article
 from app.services.sample_data import sample_articles
 
 KEYWORDS = [
-    "artificial intelligence",
-    "OpenAI",
-    "ChatGPT",
-    "OpenAI GPT",
-    "Claude AI Anthropic",
-    "Google Gemini AI",
-    "NVIDIA AI",
-    "AI startup",
-    "LLM",
-    "AGI artificial intelligence",
+    "OpenAI ChatGPT",
+    "Anthropic Claude",
+    "Google Gemini artificial intelligence",
+    "NVIDIA AI GPU",
+    "large language model",
+    "generative AI model",
+    "AI regulation policy",
+    "AI chip semiconductor",
+    "AI research model",
+    "AI coding assistant",
     "AI robotics",
-    "generative AI",
-    "AI regulation",
 ]
 
 REQUEST_HEADERS = {
@@ -32,22 +30,90 @@ REQUEST_HEADERS = {
     "Accept": "application/json,text/html,application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-AI_RELEVANCE_TERMS = [
-    "ai",
-    "artificial intelligence",
-    "openai",
-    "chatgpt",
-    "gpt",
-    "claude",
-    "anthropic",
-    "gemini",
-    "nvidia",
-    "llm",
-    "agi",
-    "robot",
-    "generative",
-    "machine learning",
-    "deep learning",
+AI_RELEVANCE_TERMS = {
+    "artificial intelligence": 4,
+    "openai": 5,
+    "chatgpt": 5,
+    "gpt-": 4,
+    "gpt": 3,
+    "claude": 5,
+    "anthropic": 5,
+    "gemini": 4,
+    "nvidia": 4,
+    "llm": 4,
+    "large language model": 5,
+    "foundation model": 4,
+    "generative ai": 4,
+    "machine learning": 3,
+    "deep learning": 3,
+    "ai chip": 4,
+    "gpu": 2,
+    "robotics": 3,
+    "ai regulation": 4,
+    "ai act": 4,
+}
+
+GENERIC_AI_TERMS = {"ai", "artificial intelligence"}
+
+TRUSTED_NEWS_DOMAINS = {
+    "reuters.com",
+    "apnews.com",
+    "bloomberg.com",
+    "wsj.com",
+    "ft.com",
+    "technologyreview.com",
+    "theverge.com",
+    "techcrunch.com",
+    "wired.com",
+    "arstechnica.com",
+    "venturebeat.com",
+    "theregister.com",
+    "zdnet.com",
+    "cnbc.com",
+    "bbc.com",
+    "cnn.com",
+    "nytimes.com",
+    "washingtonpost.com",
+    "nikkei.com",
+    "asia.nikkei.com",
+    "the-decoder.com",
+    "semianalysis.com",
+}
+
+OFFICIAL_AI_DOMAINS = {
+    "openai.com",
+    "anthropic.com",
+    "deepmind.google",
+    "ai.googleblog.com",
+    "blogs.nvidia.com",
+    "microsoft.com",
+    "meta.com",
+    "mistral.ai",
+    "cohere.com",
+    "huggingface.co",
+}
+
+MARKETING_TITLE_PATTERNS = [
+    "best ai tools",
+    "top ai tools",
+    "top 10",
+    "top 5",
+    "best free",
+    "coupon",
+    "promo code",
+    "discount",
+    "sponsored",
+    "affiliate",
+    "buy now",
+    "review:",
+    "how to use",
+    "how to choose",
+    "complete guide",
+    "ultimate guide",
+    "what is",
+    "market size",
+    "stock to buy",
+    "price prediction",
 ]
 
 NON_NEWS_DOMAINS = {
@@ -56,6 +122,9 @@ NON_NEWS_DOMAINS = {
     "youtu.be",
     "producthunt.com",
     "app.productnow.ai",
+    "medium.com",
+    "substack.com",
+    "quora.com",
 }
 
 HN_TITLE_BLOCKLIST = ("show hn:", "ask hn:", "launch hn:")
@@ -79,9 +148,47 @@ def stable_id(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
 
+def get_hostname(url: str) -> str:
+    return urlparse(url).netloc.lower().removeprefix("www.")
+
+
+def domain_matches(host: str, domains: set[str]) -> bool:
+    return any(host == domain or host.endswith(f".{domain}") for domain in domains)
+
+
+def ai_relevance_score(text: str, url: str = "", source: str = "") -> int:
+    normalized = text.lower()
+    score = 0
+    for term, weight in AI_RELEVANCE_TERMS.items():
+        if re.search(rf"\b{re.escape(term)}\b", normalized):
+            score += weight
+
+    host = get_hostname(url) if url else ""
+    if host and domain_matches(host, TRUSTED_NEWS_DOMAINS):
+        score += 3
+    if host and domain_matches(host, OFFICIAL_AI_DOMAINS):
+        score += 4
+    if source.lower() in {"reuters", "ap", "associated press", "bloomberg", "techcrunch", "the verge"}:
+        score += 2
+    return score
+
+
 def contains_ai_signal(text: str) -> bool:
     normalized = text.lower()
-    return any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in AI_RELEVANCE_TERMS)
+    return any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in GENERIC_AI_TERMS)
+
+
+def looks_like_marketing_content(text: str, url: str = "") -> bool:
+    normalized = f"{text} {url}".lower()
+    return any(pattern in normalized for pattern in MARKETING_TITLE_PATTERNS)
+
+
+def is_quality_ai_news(text: str, url: str = "", source: str = "", *, min_score: int = 5) -> bool:
+    if contains_blocked_topic(text) or looks_like_marketing_content(text, url):
+        return False
+    if url and is_non_news_url(url):
+        return False
+    return ai_relevance_score(text, url=url, source=source) >= min_score
 
 
 def contains_blocked_topic(text: str) -> bool:
@@ -90,8 +197,8 @@ def contains_blocked_topic(text: str) -> bool:
 
 
 def is_non_news_url(url: str) -> bool:
-    host = urlparse(url).netloc.lower().removeprefix("www.")
-    return host in NON_NEWS_DOMAINS
+    host = get_hostname(url)
+    return domain_matches(host, NON_NEWS_DOMAINS)
 
 
 async def fetch_google_news_rss(keyword: str) -> list[Article]:
@@ -106,7 +213,7 @@ async def fetch_google_news_rss(keyword: str) -> list[Article]:
         title = getattr(entry, "title", "")
         summary = getattr(entry, "summary", title)
         relevance_text = f"{title} {summary} {entry.link}"
-        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+        if not is_quality_ai_news(relevance_text, str(entry.link), "Google News"):
             continue
         published = getattr(entry, "published_parsed", None)
         published_at = datetime(*published[:6], tzinfo=timezone.utc) if published else datetime.now(timezone.utc)
@@ -142,15 +249,16 @@ async def fetch_gdelt(keyword: str) -> list[Article]:
     for item in payload.get("articles", []):
         title = item.get("title", "Untitled AI article")
         source = item.get("sourceCommonName", "GDELT")
-        relevance_text = f"{title} {source} {item.get('url', '')}"
-        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+        article_url = item.get("url", "")
+        relevance_text = f"{title} {source} {article_url}"
+        if not is_quality_ai_news(relevance_text, article_url, source):
             continue
         articles.append(
             Article(
-                id=stable_id(item["url"]),
+                id=stable_id(article_url),
                 title=title,
                 source=source,
-                url=item["url"],
+                url=article_url,
                 publishedAt=datetime.now(timezone.utc),
                 summary=item.get("seendate", "Global AI news item detected by GDELT."),
                 country=item.get("sourceCountry", "Global"),
@@ -183,15 +291,16 @@ async def fetch_newsapi(keyword: str) -> list[Article]:
         title = item["title"]
         summary = item.get("description") or title
         source = item.get("source", {}).get("name", "NewsAPI")
-        relevance_text = f"{title} {summary} {source} {item['url']}"
-        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+        article_url = item["url"]
+        relevance_text = f"{title} {summary} {source} {article_url}"
+        if not is_quality_ai_news(relevance_text, article_url, source):
             continue
         articles.append(
             Article(
-                id=stable_id(item["url"]),
+                id=stable_id(article_url),
                 title=title,
                 source=source,
-                url=item["url"],
+                url=article_url,
                 publishedAt=item.get("publishedAt") or datetime.now(timezone.utc),
                 summary=summary,
                 keywords=[keyword],
@@ -213,10 +322,13 @@ async def fetch_hacker_news(keyword: str) -> list[Article]:
         title = item.get("title") or item.get("story_title") or "Hacker News AI discussion"
         external_url = item.get("url") or ""
         hn_url = f"https://news.ycombinator.com/item?id={item.get('objectID')}"
+        points = int(item.get("points") or 0)
         relevance_text = f"{title} {external_url}"
-        if title.lower().startswith(HN_TITLE_BLOCKLIST) or contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+        if title.lower().startswith(HN_TITLE_BLOCKLIST):
             continue
-        if external_url and is_non_news_url(external_url):
+        if not is_quality_ai_news(relevance_text, external_url, "Hacker News", min_score=7):
+            continue
+        if points < 3 and not domain_matches(get_hostname(external_url), TRUSTED_NEWS_DOMAINS | OFFICIAL_AI_DOMAINS):
             continue
         target_url = external_url or hn_url
         created_at = item.get("created_at") or datetime.now(timezone.utc).isoformat()
@@ -229,7 +341,7 @@ async def fetch_hacker_news(keyword: str) -> list[Article]:
                 publishedAt=created_at,
                 summary=f"Hacker News discussion matching {keyword}.",
                 keywords=[keyword, "Hacker News"],
-                popularity=min(int(item.get("points") or 0), 100),
+                popularity=min(points, 100),
             )
         )
     return articles
@@ -247,8 +359,12 @@ async def fetch_reddit(keyword: str) -> list[Article]:
         item = child.get("data", {})
         title = item.get("title", "Reddit AI discussion")
         summary = item.get("selftext", "")[:280] or f"Reddit discussion matching {keyword}."
-        relevance_text = f"{title} {summary} {item.get('url_overridden_by_dest', '')}"
-        if contains_blocked_topic(relevance_text) or not contains_ai_signal(relevance_text):
+        score = int(item.get("score") or 0)
+        outbound_url = item.get("url_overridden_by_dest", "")
+        relevance_text = f"{title} {summary} {outbound_url}"
+        if not is_quality_ai_news(relevance_text, outbound_url, f"Reddit r/{item.get('subreddit', 'AI')}", min_score=7):
+            continue
+        if score < 5:
             continue
         permalink = f"https://www.reddit.com{item.get('permalink', '')}"
         created = datetime.fromtimestamp(item.get("created_utc", datetime.now(timezone.utc).timestamp()), tz=timezone.utc)
@@ -257,11 +373,11 @@ async def fetch_reddit(keyword: str) -> list[Article]:
                 id=stable_id(permalink),
                 title=title,
                 source=f"Reddit r/{item.get('subreddit', 'AI')}",
-                url=item.get("url_overridden_by_dest") or permalink,
+                url=outbound_url or permalink,
                 publishedAt=created,
                 summary=summary,
                 keywords=[keyword, "Reddit"],
-                popularity=min(int(item.get("score") or 0), 100),
+                popularity=min(score, 100),
             )
         )
     return articles
@@ -287,4 +403,4 @@ async def collect_latest_news(limit: int = 60) -> list[Article]:
     deduped = {article.url.unicode_string(): article for article in articles}
     if not deduped:
         return sample_articles()
-    return sorted(deduped.values(), key=lambda item: item.publishedAt, reverse=True)[:limit]
+    return sorted(deduped.values(), key=lambda item: (item.popularity, item.publishedAt), reverse=True)[:limit]
